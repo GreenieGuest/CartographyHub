@@ -226,6 +226,27 @@ export default function MapCanvas() {
 
     useEffect(() => { scheduleDraw() }, [referenceLayers, scheduleDraw])
 
+    // resize observer
+    useEffect(() => {
+        const ro = new ResizeObserver(() => scheduleDraw())
+        if (containerRef.current) ro.observe(containerRef.current)
+        return () => ro.disconnect()
+    }, [scheduleDraw])
+
+    // coordinate helpers
+
+    const screenToImage = (sx, sy) => ({
+        x: Math.floor((sx - pan.current.x) / zoom.current),
+        y: Math.floor((sy - pan.current.y) / zoom.current),
+    })
+
+    const getPixelAt = (ix, iy) => {
+        const src = pixelData.current
+        if (!src) return null
+        if (ix < 0 || iy < 0 || ix >= src.width || iy >= src.height) return null
+        const i = (iy * src.width + ix) * 4
+        return { r: src.data[i], h: src.data[i + 1], b: src.data[i + 2]}
+    }
 
     return (
         <>
