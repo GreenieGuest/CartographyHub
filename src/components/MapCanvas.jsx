@@ -55,8 +55,94 @@ export default function MapCanvas() {
             const dstOff = row * tw * 4
             tile.data.set(data.subarray(srcOff, srcOff + tw * 4), dstOff)
         }
-        return createImageBitmap(tile)
+        return createImageBitmap(tile) // returns Promise<ImageBitmap>
     }, [])
+
+    // invalidate and rebuild tile cache
+    const invalidateTiles = useCallback(() => {
+        tileCache.current.forEach(bmp => bmp.close?.())
+        tileCache.current.clear()
+        tileInFlight.current.clear()
+        dirty.current = true
+        scheduleDraw()
+    }, [])
+
+    // draw loop
+
+    const draw = useCallback(() => {
+        rafId.current = null
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const ctx = canvas.getContext('2d')
+
+        const { offsetWidth: cw, offsetHeight: ch } = canvas.parentElement
+        if (canvas.width !== cw || canvas.height !== ch) {
+            canvas.width = cw
+            canvas.height = ch
+        }
+
+        ctx.clearRect(0, 0, cw, ch)
+
+        if (!mapImage) {
+            drawEmpty(ctx, cw, ch)
+            return
+        }
+
+        const srcPixels = (visualizationMode !== 'default' && vizPixelData.current) ? vizPixelData.current : pixelData.current
+        if (!srcPixels) return
+
+        const z = zoom.current
+        const px = pan.current.x
+        const py = pan.current.y
+        const { width: imgW, height: imgH } = srcPixels
+
+        // find out which ones are actually visible
+        const tilesX = Math.ceil(imgW / TILE_SIZE)
+        const tilesY = Math.ceil(imgH / TILE_SIZE)
+
+        // make viewport rectangle in image space
+        const imgLeft = Math.max(0, Math.floor(-px / z / TILE_SIZE))
+        const imgTop = Math.max(0, Math.floor(-py / z / TILE_SIZE))
+        const imgRight = Math.min(tilesX - 1, Math.ceil((cw-px) / z / TILE_SIZE))
+        const imgBottom = Math.min(tilesY - 1, Math.ceil((ch-py) / z / TILE_SIZE))
+
+        ctx.save()
+        ctx.imageSmoothingEnabled = z < 1
+        ctx.imageSmoothingQuality = 'low'
+
+        for (let ty = imgTop; ty <= imgBottom; ty++) {
+            for (let tx = imgLeft; tx <= imgRight; tx++) {
+                const key = `${tx}:${ty}`
+                const bmp = tileCache.current.get(key)
+
+                if (bmp) {
+                    const dx = px + tx * TILE_SIZE * z
+                    const dy = py + ty * TILE_SIZE * z
+                    ctx.drawImage(bmp, dx, dy, bmp.width * z, bmp.height * z)
+                } else if (!tileInFlight.current.has(key)) {
+                    // start async tile creation
+                    tileInFlight.current.add(key)
+                    createTile(tx, ty, srcPixels).then(bitmap => {
+                        if (!bitmap) return
+                        tileCache.current.set(key, bitmap)
+                        tileInFlight.current.delete(key)
+                        scheduleDraw()
+                    })
+                }
+            }
+        }
+
+        // reference layers
+        for (const layer of referenceLayers) {
+            if (!layer.visible) continue
+            ctx.globalAlpha = layer.opacity
+            ctx.drawImage(layer.img, px, py, imgW * z, imgH * z)
+            ctx.globalAlpha = 1
+        }
+
+        ctx.restore()
+        dirty.current = false
+    }, [mapImage, visualizationMode, referenceLayers, createTile])
 
     return (
         <>
