@@ -13,7 +13,7 @@ export default function Sidebar() {
     const { selectedProvince, provinceData, referenceLayers, updateLayer, removeLayer, moveLayer } = useMapStore()
 
     return (
-        <div className="sidebar">
+        <aside className="sidebar">
             <div className="tab-buttons">
                 {TABS.map((tab) => (
                     <button
@@ -27,8 +27,40 @@ export default function Sidebar() {
             </div>
 
             <div className="sidebar-body">
+                {activeTab === 'Province' && <ProvincePanel province={selectedProvince} />}
                 {activeTab === 'Hierarchy' && <HierarchyTree />}
             </div>
+        </aside>
+    )
+}
+
+function ProvincePanel({ province }) {
+    if (!province) {
+        return <p>No province selected. Click on the map to select a province.</p>
+    }
+    const [r, g, b] = province.rgb
+    const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+    const data = province.data
+
+    return (
+        <div className="province-panel">
+            <div className="province-color-swatch" style={{ background: hex }} title={hex} />
+            <div className="province-color-label">
+                RGB ({r}, {g}, {b}) &nbsp; {hex}
+            </div>
+
+            {data ? (
+                <table className="province-data-table">
+                    <tbody>
+                        {Object.entries(data).map(([key, value]) => (
+                            <tr key={key}>
+                                <td>{key}</td>
+                                <td>{value}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            ) : null}
         </div>
     )
 }
