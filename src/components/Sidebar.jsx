@@ -28,6 +28,7 @@ export default function Sidebar() {
 
             <div className="sidebar-body">
                 {activeTab === 'Province' && <ProvincePanel province={selectedProvince} />}
+                {activeTab === 'Layers' && <LayersPanel layers={referenceLayers} onUpdate={updateLayer} onRemove={removeLayer} onMove={moveLayer} />}
                 {activeTab === 'Hierarchy' && <HierarchyTree />}
             </div>
         </aside>
@@ -61,6 +62,26 @@ function ProvincePanel({ province }) {
                     </tbody>
                 </table>
             ) : null}
+        </div>
+    )
+}
+
+function LayersPanel({layers, onUpdate, onRemove, onMove}) {
+    if (layers.length === 0) {
+        return <p>No reference layers added. Use the toolbar to add reference images.</p>
+    }
+    return (
+        <div className="layers-list">
+            {[...layers].reverse().map((layer, index) => (
+                <div key={index} className="layer-row">
+                    <span>{layer.name || `Layer ${index + 1}`}</span>
+                    <div className="layer-controls">
+                        <button onClick={() => onMove(index, 'up')} disabled={index === layers.length - 1}>↑</button>
+                        <button onClick={() => onMove(index, 'down')} disabled={index === 0}>↓</button>
+                        <button onClick={() => onRemove(index)}>Remove</button>
+                    </div>
+                </div>
+            ))}
         </div>
     )
 }
