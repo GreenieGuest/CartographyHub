@@ -144,6 +144,89 @@ export default function MapCanvas() {
         dirty.current = false
     }, [mapImage, visualizationMode, referenceLayers, createTile])
 
+    const scheduleDraw = useCallback(() => {
+        if (rafId.current) return
+        rafId.current = requestAnimationFrame(draw)
+    }, [draw])
+
+    function drawEmpty(ctx, w, h) { // placeholder
+        ctx.fillStyle = '#1a1c14'
+        ctx.fillRect(0, 0, w, h)
+        ctx.fillStyle = '#3a3d30'
+        ctx.font = '14px Inter, system-ui, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('Load a map image to begin', w / 2, h / 2)
+    }
+
+    // when an image is loaded extract the ImageData
+    useEffect(() => {
+        if (!mapImage) return
+
+        const offscreen = document.createElement('canvas')
+        offscreen.width = mapImage.width
+        offscreen.height = mapImage.height
+        const ctx = offscreen.getContext('2d')
+        ctx.drawImage(mapImage, 0, 0)
+        const idata = ctx.getImageData(0, 0, mapImage.width, mapImage, height)
+
+        pixelData.current = { data: idata.data, width: mapImage.width, height: mapImage.height }
+        vizPixelData.current = null
+
+        // fit image to viewport
+        const container = containerRef.current
+        if (container) {
+            const scaleX = container.offsetWidth / mapImage.width
+            const scaleY = container.offsetHeight / mapImage.height
+
+            zoom.current = Math.min(scaleX, scaleY, 1)
+            pan.current = {
+                x: (container.offsetWidth - mapImage.width * zoom.current) / 2,
+                y: (container.offsetHeight - mapImage.height * zoom.current) / 2,
+            }
+            setZoom(zoom.current)
+        }
+
+        invalidateTiles()
+    }, [mapImage, invalidateTiles, setZoom])
+
+    // map modes change
+
+    useEffect(() => {
+        if (!pixelData.current) return
+        if (visualizationMode === 'default') {
+            vizPixelData.current = null
+            invalidateTiles()
+            return
+        }
+
+        if (vizWorker.current) vizWorker.current.terminate()
+        vizWorker.current = new Worker(
+            new URL('../workers/recolor.worker.js', import.meta.url),
+            { type: 'module' }
+        )
+        const { data, width, height } = pixelData.current
+        const copy = new Uint8ClampedArray(data)
+
+        vizWorker.current.onmessage = ({ data: msg }) => {
+            vizPixelData.current = {
+                data: new Uint8ClampedArray(msg.buffer),
+                width: msg.width,
+                height: msg.height,
+            }
+            invalidateTiles()
+        }
+
+        vizWorker.current.postMessage(
+            { buffer: copy.buffer, width, height, provinceData, visualizationMode },
+            [copy.buffer]
+        )
+    }, [visualizationMode, provinceData, invalidateTiles])
+
+    // redraw when user changes reference layers
+
+    useEffect(() => { scheduleDraw() }, [referenceLayers, scheduleDraw])
+
+
     return (
         <>
             <section id="center">
