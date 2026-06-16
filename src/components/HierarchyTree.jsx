@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMapStore } from '../stores/mapStore'
+import { useMapStore } from '../store/mapStore'
 
 const CHILD_TYPES = {
     root: 'region',

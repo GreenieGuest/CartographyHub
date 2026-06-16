@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { useMapStore } from '../stores/mapStore'
+import { useMapStore } from '../store/mapStore'
 
 const TOOLS = [
     { id: 'select', title: 'Select Province'},

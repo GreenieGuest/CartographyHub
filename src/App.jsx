@@ -2,7 +2,7 @@ import { useRef } from "react";
 import MapCanvas from "./components/MapCanvas";
 import Toolbar from "./components/Toolbar";
 import Sidebar from "./components/Sidebar";
-import { useMapStore } from "./stores/mapStore";
+import { useMapStore } from "./store/mapStore";
 import './App.css'
 
 export default function App() {
