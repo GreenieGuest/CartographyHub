@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useMapStore } from '../store/mapStore'
 
 const CHILD_TYPES = {
-    root: 'region',
+    root: 'continent',
+    continent: 'subcontinent',
+    subcontinent: 'region',
     region: 'area',
     area: 'province',
     province: 'location',
