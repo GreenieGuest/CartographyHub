@@ -75,6 +75,8 @@ function LayersPanel({layers, onUpdate, onRemove, onMove}) {
             {[...layers].reverse().map((layer, index) => (
                 <div key={index} className="layer-row">
                     <span>{layer.name || `Layer ${index + 1}`}</span>
+                    <button onClick={() => onUpdate(layer.id, { visible: !layer.visible })}>Toggle Visibility</button>
+                    <input type="range" min="0" max="1" step="0.01" value={layer.opacity} onChange={(e) => onUpdate(layer.id, { opacity: Number(e.target.value) })} />
                     <div className="layer-controls">
                         <button onClick={() => onMove(index, 'up')} disabled={index === layers.length - 1}>↑</button>
                         <button onClick={() => onMove(index, 'down')} disabled={index === 0}>↓</button>
