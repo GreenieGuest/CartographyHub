@@ -120,6 +120,32 @@ export default function Toolbar() {
                     ))}
                 </div>
             </section>
+
+            <section className="toolbar-section">
+                <div className="toolbar-label">Data</div>
+                <div className="data-buttons">
+                    <button onClick={() => csvRef.current.click()}>Load Province Data (CSV)</button>
+                    <input
+                        type="file"
+                        ref={csvRef}
+                        onChange={handleCSV}
+                        style={{ display: 'none' }}
+                    />
+                </div>
+            </section>
+
+            <section className="toolbar-section">
+                <div className="toolbar-label">Layers</div>
+                <div className="reference-image-buttons">
+                    <button onClick={() => refImgRef.current.click()}>Add Reference Layer</button>
+                    <input
+                        type="file"
+                        ref={refImgRef}
+                        onChange={handleReferenceImage}
+                        style={{ display: 'none' }}
+                    />
+                </div>
+            </section>
         </aside>
     )
 }
