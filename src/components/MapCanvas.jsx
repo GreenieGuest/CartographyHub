@@ -248,6 +248,41 @@ export default function MapCanvas() {
         return { r: src.data[i], h: src.data[i + 1], b: src.data[i + 2]}
     }
 
+    // Paintbrush editing + invalidate affected tiles
+
+    const paintBrush = useCallback((ix, iy) => {
+        const src = pixelData.current
+        if (!src) return
+        const { data, width, height } = src
+        const hex = brushColor.replace('#', '')
+        const fr = parseInt(hex.substring(0,2),16)
+        const fg = parseInt(hex.substring(2,4),16)
+        const fb = parseInt(hex.substring(4,6),16)
+        const r = Math.ceil(brushSize / 2)
+
+        // paint circle
+        const affectedTiles = new Set()
+        for (let dy = -r; dy <= r; dy++) {
+            for (let dx = -r; dx <= r; dx++) {
+                if (dx*dx + dy*dy > r*r) continue
+                const px2 = ix + dx, py2 = iy + dy
+                if (px2 < 0 || py2 < 0 || px2 >= width || py2 >= height) continue
+                const idx = (py2 * width + px2) * 4
+                data[idx] = fr; data[idx+1] = fg; data[idx+2] = fb
+                affectedTiles.add(`${Math.floor(px2/TILE_SIZE)}:${Math.floor(py2/TILE_SIZE)}`)
+            }
+        }
+
+        // remove only affected tiles
+        affectedTiles.forEach(key => {
+            tileCache.current.get(key)?.close?.()
+            tileCache.current.delete(key)
+            tileInFlight.current.delete(key)
+        })
+        dirty.current = true
+        scheduleDraw()
+    }, [brushColor, brushSize, scheduleDraw])
+
     return (
         <>
             <section id="center">
