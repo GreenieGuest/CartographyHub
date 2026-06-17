@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, act } from 'react'
 import { useMapStore } from '../store/mapStore'
 
 // Constants
@@ -311,6 +311,70 @@ export default function MapCanvas() {
         src.data = null
     }, [brushColor, invalidateTiles])
 
+    // Mouse handlers
+    const getCanvasXY = (e) => {
+        const rect = canvasRef.current.getBoundingClientRect()
+        return { sx: e.clientX - rect.left, sy: e.clientY - rect.top }
+    }
+
+    const onMouseDown = useCallback((e) => {
+        // Pan: middle mouse or alt + left (probably gonna change later :/)
+        if (e.button === 1 || (e.button === 0 && e.altKey)) {
+            isPanning.current = true
+            lastMouse.current = { x: e.clientX, y: e.clientY}
+            e.preventDefault()
+            return
+        }
+        if (e.button !== 0) return
+
+        const { sx, sy } = getCanvasXY(e)
+        const { x: ix, y: iy } = screenToImage(sx, sy)
+
+        if (activeTool === 'select') {
+            const px = getPixelAt(ix, iy)
+            if (px) selectProvince(px.r, px.g, px.b)
+        } else if (activeTool === 'brush') {
+            isDrawing.current = true
+            paintBrush(ix, iy)
+        } else if (activeTool === 'fill') {
+            floodFill(ix, iy)
+        }
+    }, [activeTool, selectProvince, paintBrush, floodFill])
+
+    const onMouseMove = useCallback((e) => {
+        if (isPanning.current) {
+            pan.current.x += e.clientX - lastMouse.current.x
+            pan.current.y += e.clientY - lastMouse.current.y
+            lastMouse.current = { x: e.clientX, y: e.clientY }
+            dirty.current = true
+            scheduleDraw()
+        } else if (isDrawing.current && activeTool === 'brush') {
+            const { sx, sy } = getCanvasXY(e)
+            const { x: ix, y: iy } = screenToImage(sx, sy)
+            paintBrush(ix, iy)
+        }
+    }, [activeTool, paintBrush, scheduleDraw])
+
+    const onMouseUp = useCallback(() => {
+        isPanning.current = false
+        isDrawing.current = false
+    }, [])
+
+    const onWheel = useCallback((e) => {
+        e.preventDefault()
+        const { sx, sy } = getCanvasXY(e)
+        const factor = e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR
+        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom.current * factor))
+        // zoom towards cursor position
+
+        pan.current.x = sx - (sx - pan.current.x) * (newZoom / zoom.current)
+        pan.current.y = sy - (sy - pan.current.y) * (newZoom / zoom.current)
+        zoom.current = newZoom
+        setZoom(newZoom)
+        dirty.current = true
+        scheduleDraw()
+    }, [scheduleDraw, setZoom])
+    
     return (
         <>
             <section id="center">
