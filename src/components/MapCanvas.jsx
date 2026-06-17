@@ -283,6 +283,34 @@ export default function MapCanvas() {
         scheduleDraw()
     }, [brushColor, brushSize, scheduleDraw])
 
+    const floodFill = useCallback((ix, iy) => {
+        const src = pixelData.current
+        if (!src) return
+        const hex = brushColor.replace('#', '')
+        const fillR = parseInt(hex.substring(0,2),16)
+        const fillG = parseInt(hex.substring(2,4),16)
+        const fillB = parseInt(hex.substring(4,6),16)
+
+        if (fillWorker.current) fillWorker.current.terminate()
+        fillWorker.current = new Worker(
+            new URL('../workers/floodfill.worker.js', import.meta.url), { type: 'module' }
+        )
+
+        // transfer buffer to worker
+        const { width, height } = src
+        const buffer = src.data.buffer
+
+        fillWorker.current.onmessage = ({data: msg}) => {
+            pixelData.current.data = new Uint8ClampedArray(msg.buffer)
+            invalidateTiles()
+        }
+
+        fillWorker.current.postMessage(
+            { buffer, width, height, startX: ix, startY: iy, fillR, fillG, fillB}, [buffer]
+        )
+        src.data = null
+    }, [brushColor, invalidateTiles])
+
     return (
         <>
             <section id="center">
