@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, act } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import { useMapStore } from '../store/mapStore'
 
 // Constants
@@ -58,16 +58,13 @@ export default function MapCanvas() {
         return createImageBitmap(tile) // returns Promise<ImageBitmap>
     }, [])
 
-    // invalidate and rebuild tile cache
-    const invalidateTiles = useCallback(() => {
-        tileCache.current.forEach(bmp => bmp.close?.())
-        tileCache.current.clear()
-        tileInFlight.current.clear()
-        dirty.current = true
-        scheduleDraw()
+    // draw loop
+    const scheduleDraw = useCallback(() => {
+        if (rafId.current) return
+        rafId.current = requestAnimationFrame(draw)
     }, [])
 
-    // draw loop
+    const drawRef = useRef(null)
 
     const draw = useCallback(() => {
         rafId.current = null
@@ -126,7 +123,7 @@ export default function MapCanvas() {
                         if (!bitmap) return
                         tileCache.current.set(key, bitmap)
                         tileInFlight.current.delete(key)
-                        scheduleDraw()
+                        drawRef.current?.()
                     })
                 }
             }
@@ -144,10 +141,26 @@ export default function MapCanvas() {
         dirty.current = false
     }, [mapImage, visualizationMode, referenceLayers, createTile])
 
-    const scheduleDraw = useCallback(() => {
+    useEffect(() => {
+        drawRef.current = scheduleDraw
+    })
+
+    const scheduleDrawStable = useCallback(() => {
         if (rafId.current) return
-        rafId.current = requestAnimationFrame(draw)
+        rafId.current = requestAnimationFrame(() => {
+            rafId.current = null
+            draw()
+        })
     }, [draw])
+
+     // invalidate and rebuild tile cache
+    const invalidateTiles = useCallback(() => {
+        tileCache.current.forEach(bmp => bmp.close?.())
+        tileCache.current.clear()
+        tileInFlight.current.clear()
+        dirty.current = true
+        scheduleDraw()
+    }, [])
 
     function drawEmpty(ctx, w, h) { // placeholder
         ctx.fillStyle = '#1a1c14'
@@ -167,7 +180,7 @@ export default function MapCanvas() {
         offscreen.height = mapImage.height
         const ctx = offscreen.getContext('2d')
         ctx.drawImage(mapImage, 0, 0)
-        const idata = ctx.getImageData(0, 0, mapImage.width, mapImage, height)
+        const idata = ctx.getImageData(0, 0, mapImage.width, mapImage.height)
 
         pixelData.current = { data: idata.data, width: mapImage.width, height: mapImage.height }
         vizPixelData.current = null
@@ -224,14 +237,14 @@ export default function MapCanvas() {
 
     // redraw when user changes reference layers
 
-    useEffect(() => { scheduleDraw() }, [referenceLayers, scheduleDraw])
+    useEffect(() => { scheduleDrawStable() }, [referenceLayers, scheduleDrawStable])
 
     // resize observer
     useEffect(() => {
         const ro = new ResizeObserver(() => scheduleDraw())
         if (containerRef.current) ro.observe(containerRef.current)
         return () => ro.disconnect()
-    }, [scheduleDraw])
+    }, [scheduleDrawStable])
 
     // coordinate helpers
 
@@ -245,7 +258,7 @@ export default function MapCanvas() {
         if (!src) return null
         if (ix < 0 || iy < 0 || ix >= src.width || iy >= src.height) return null
         const i = (iy * src.width + ix) * 4
-        return { r: src.data[i], h: src.data[i + 1], b: src.data[i + 2]}
+        return { r: src.data[i], g: src.data[i + 1], b: src.data[i + 2]}
     }
 
     // Paintbrush editing + invalidate affected tiles
@@ -280,8 +293,8 @@ export default function MapCanvas() {
             tileInFlight.current.delete(key)
         })
         dirty.current = true
-        scheduleDraw()
-    }, [brushColor, brushSize, scheduleDraw])
+        scheduleDrawStable()
+    }, [brushColor, brushSize, scheduleDrawStable])
 
     const floodFill = useCallback((ix, iy) => {
         const src = pixelData.current
@@ -347,13 +360,13 @@ export default function MapCanvas() {
             pan.current.y += e.clientY - lastMouse.current.y
             lastMouse.current = { x: e.clientX, y: e.clientY }
             dirty.current = true
-            scheduleDraw()
+            scheduleDrawStable()
         } else if (isDrawing.current && activeTool === 'brush') {
             const { sx, sy } = getCanvasXY(e)
             const { x: ix, y: iy } = screenToImage(sx, sy)
             paintBrush(ix, iy)
         }
-    }, [activeTool, paintBrush, scheduleDraw])
+    }, [activeTool, paintBrush, scheduleDrawStable])
 
     const onMouseUp = useCallback(() => {
         isPanning.current = false
@@ -372,8 +385,8 @@ export default function MapCanvas() {
         zoom.current = newZoom
         setZoom(newZoom)
         dirty.current = true
-        scheduleDraw()
-    }, [scheduleDraw, setZoom])
+        scheduleDrawStable()
+    }, [scheduleDrawStable, setZoom])
 
     useEffect(() => {
         const el = canvasRef.current
@@ -397,7 +410,7 @@ export default function MapCanvas() {
             <canvas
                 ref={canvasRef}
                 className="map-canvas"
-                style={{cursor, width: '100%, height: 100%'}}
+                style={{ cursor, width: '100%', height: '100%' }}
                 onMouseDown={onMouseDown}
                 onMouseMove={onMouseMove}
                 onMouseUp={onMouseUp}
