@@ -1,5 +1,6 @@
 //Input: { buffer: ArrayBuffer, width, height, provinceData, visualizationMode }
 // Output: { buffer: ArrayBuffer, width, height }
+import TRADE_GOOD_COLORS from "../constants/tradegoodcolors.js"
 
 self.onmessage = ({ data }) => {
     const { buffer, width, height, provinceData, visualizationMode } = data
@@ -15,18 +16,10 @@ self.onmessage = ({ data }) => {
         return [(hash >> 16) & 0xff, (hash >> 8) & 0xff, hash & 0xff]
     }
 
-    const TRADE_GOOD_COLORS = {
-        grain:[218,165,32], wool:[240,230,140], fish:[100,149,237],
-        iron:[105,105,105], gold:[255,215,0], silk:[221,160,221],
-        spices:[255,140,0], wine:[128,0,128], cloth:[255,105,180],
-        wood:[101,67,33], fur:[139,90,43], ivory:[255,255,240],
-        salt:[245,245,245], copper:[184,115,51], dye:[148,0,211],
-    }
-
     const getVizColor = (province) => {
         if (!province) return null
         if (visualizationMode === 'tradeGood') {
-            const g = (province.tradeGood || province.grade_good || '').toLowerCase()
+            const g = (province.tradeGood || province.grade_good || province.raw_material || '').toLowerCase()
             return TRADE_GOOD_COLORS[g] || hashColor(g)
         }
         if (visualizationMode === 'continent') return hashColor(province.continent || '')
