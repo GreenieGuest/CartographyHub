@@ -1,6 +1,8 @@
 //Input: { buffer: ArrayBuffer, width, height, provinceData, visualizationMode }
 // Output: { buffer: ArrayBuffer, width, height }
 import TRADE_GOOD_COLORS from "../constants/tradegoodcolors.js"
+import CLIMATE_COLORS from "../constants/climatecolors.js"
+import TERRAIN_COLORS from "../constants/terraincolors.js"
 
 self.onmessage = ({ data }) => {
     const { buffer, width, height, provinceData, visualizationMode } = data
@@ -16,11 +18,30 @@ self.onmessage = ({ data }) => {
         return [(hash >> 16) & 0xff, (hash >> 8) & 0xff, hash & 0xff]
     }
 
+    const getColorOnScale = (value, min, max) => {
+        value = Math.max(min, Math.min(max, value));
+        const percent = (value - min) / (max - min);
+        const g = Math.floor(percent * 255);
+        return [0, g, 0];
+    }
+
     const getVizColor = (province) => {
         if (!province) return null
         if (visualizationMode === 'tradeGood') {
             const g = (province.tradeGood || province.grade_good || province.raw_material || '').toLowerCase()
             return TRADE_GOOD_COLORS[g] || hashColor(g)
+        }
+        if (visualizationMode === 'climate') {
+            const g = (province.climate || '').toLowerCase()
+            return CLIMATE_COLORS[g] || hashColor(g)
+        }
+        if (visualizationMode === 'terrain') {
+            const g = (province.terrain || province.topography || '').toLowerCase()
+            return TERRAIN_COLORS[g] || hashColor(g)
+        }
+        if (visualizationMode === 'population') {
+            const g = Number(province.terrain || '')
+            return (getColorOnScale(g, 0, 1000000))
         }
         if (visualizationMode === 'continent') return hashColor(province.continent || '')
         if (visualizationMode === 'subcontinent') return hashColor(province.subcontinent || '')
