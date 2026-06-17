@@ -14,6 +14,13 @@ const VIEWS = [
     { id: 'population', label: 'Population'},
     { id: 'vegetation', label: 'Vegetation'},
     { id: 'climate', label: 'Climate'},
+    { id: 'owner', label: 'Owner'},
+    { id: 'culture', label: 'Culture'},
+    { id: 'religion', label: 'Religion'},
+    { id: 'harbors', label: 'Harbors'},
+    //Hierarchical
+    { id: 'continent', label: 'Continent'},
+    { id: 'subcontinent', label: 'Subcontinent'},
     { id: 'region', label: 'Region'},
     { id: 'area', label: 'Area'},
     { id: 'province', label: 'Province'},

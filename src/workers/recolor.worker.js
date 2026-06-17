@@ -40,9 +40,18 @@ self.onmessage = ({ data }) => {
             return TERRAIN_COLORS[g] || hashColor(g)
         }
         if (visualizationMode === 'population') {
-            const g = Number(province.terrain || '')
-            return (getColorOnScale(g, 0, 1000000))
+            const g = Number(province.population || '')
+            return (getColorOnScale(g, 0, 150000))
         }
+        if (visualizationMode === 'harbors') {
+            const g = Number(province.natural_harbor_suitability || '')
+            return (getColorOnScale(g, 0, 1))
+        }
+        
+        if (visualizationMode === 'culture') return hashColor(province.culture || '')
+        if (visualizationMode === 'religion') return hashColor(province.religion || '')
+        if (visualizationMode === 'owner') return hashColor(province.owner || '')
+
         if (visualizationMode === 'continent') return hashColor(province.continent || '')
         if (visualizationMode === 'subcontinent') return hashColor(province.subcontinent || '')
         if (visualizationMode === 'region') return hashColor(province.region || '')
