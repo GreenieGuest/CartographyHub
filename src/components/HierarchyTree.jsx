@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { useMapStore } from '../store/mapStore'
 
 const CHILD_TYPES = {
-    root: 'continent',
-    continent: 'subcontinent',
+    root: 'subcontinent',
     subcontinent: 'region',
     region: 'area',
     area: 'province',
@@ -18,10 +17,10 @@ export default function HierarchyTree() {
         <div className="hierarchy-tree">
             <div className="hierarchy-header">
                 <h2>World Hierarchy</h2>
-                <button onClick={() => addNode(null, 'root', 'New Region')}>Add Region</button>
+                <button onClick={() => addNode(null, 'root', 'New Continent')}>Add Continent</button>
             </div>
             {hierarchy.length === 0 ? (
-                <p>No regions added yet. Click "Add Region" to start building the hierarchy.</p>
+                <p>No Continents added yet. Click "Add Continent" to start building the hierarchy.</p>
             ) : (
                 <ul className="tree-root">
                     {hierarchy.map((node) => (
