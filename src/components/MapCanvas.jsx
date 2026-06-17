@@ -59,20 +59,25 @@ export default function MapCanvas() {
     }, [])
 
     // draw loop
-    const scheduleDraw = useCallback(() => {
-        if (rafId.current) return
-        rafId.current = requestAnimationFrame(draw)
-    }, [])
 
     const drawRef = useRef(null)
 
     const draw = useCallback(() => {
         rafId.current = null
         const canvas = canvasRef.current
-        if (!canvas) return
+        if (!canvas) {
+            console.log('MapCanvas.draw: no canvas element')
+            return
+        }
         const ctx = canvas.getContext('2d')
 
-        const { offsetWidth: cw, offsetHeight: ch } = canvas.parentElement
+        try {
+            console.log('MapCanvas.draw: canvas', canvas.width, canvas.height, 'pan', pan.current, 'zoom', zoom.current, 'tiles', tileCache.current.size)
+        } catch (err) {
+            console.log('MapCanvas.draw: log failed', err)
+        }
+
+        const { offsetWidth: cw, offsetHeight: ch } = containerRef.current
         if (canvas.width !== cw || canvas.height !== ch) {
             canvas.width = cw
             canvas.height = ch
@@ -81,17 +86,23 @@ export default function MapCanvas() {
         ctx.clearRect(0, 0, cw, ch)
 
         if (!mapImage) {
+            console.log('MapCanvas.draw: mapImage is null')
             drawEmpty(ctx, cw, ch)
             return
         }
 
         const srcPixels = (visualizationMode !== 'default' && vizPixelData.current) ? vizPixelData.current : pixelData.current
-        if (!srcPixels) return
+        if (!srcPixels) {
+            console.log('MapCanvas.draw: srcPixels not ready')
+            return
+        }
 
         const z = zoom.current
         const px = pan.current.x
         const py = pan.current.y
         const { width: imgW, height: imgH } = srcPixels
+
+        console.log('MapCanvas.draw: srcPixels', imgW, imgH)
 
         // find out which ones are actually visible
         const tilesX = Math.ceil(imgW / TILE_SIZE)
@@ -129,6 +140,16 @@ export default function MapCanvas() {
             }
         }
 
+        // If there are no cached tiles yet (first frame), draw the full image as a fallback
+        if (tileCache.current.size === 0) {
+            // use the original mapImage where available for immediate feedback
+            try {
+                ctx.drawImage(mapImage, px, py, imgW * z, imgH * z)
+            } catch (err) {
+                // ignore - drawing may fail if mapImage isn't usable
+            }
+        }
+
         // reference layers
         for (const layer of referenceLayers) {
             if (!layer.visible) continue
@@ -138,12 +159,9 @@ export default function MapCanvas() {
         }
 
         ctx.restore()
+        console.log('MapCanvas.draw: finished frame')
         dirty.current = false
     }, [mapImage, visualizationMode, referenceLayers, createTile])
-
-    useEffect(() => {
-        drawRef.current = scheduleDraw
-    })
 
     const scheduleDrawStable = useCallback(() => {
         if (rafId.current) return
@@ -153,14 +171,18 @@ export default function MapCanvas() {
         })
     }, [draw])
 
+    useEffect(() => {
+        drawRef.current = scheduleDrawStable
+    }, [scheduleDrawStable])
+
      // invalidate and rebuild tile cache
     const invalidateTiles = useCallback(() => {
         tileCache.current.forEach(bmp => bmp.close?.())
         tileCache.current.clear()
         tileInFlight.current.clear()
         dirty.current = true
-        scheduleDraw()
-    }, [])
+        scheduleDrawStable()
+    }, [scheduleDrawStable])
 
     function drawEmpty(ctx, w, h) { // placeholder
         ctx.fillStyle = '#1a1c14'
@@ -175,31 +197,43 @@ export default function MapCanvas() {
     useEffect(() => {
         if (!mapImage) return
 
-        const offscreen = document.createElement('canvas')
-        offscreen.width = mapImage.width
-        offscreen.height = mapImage.height
-        const ctx = offscreen.getContext('2d')
-        ctx.drawImage(mapImage, 0, 0)
-        const idata = ctx.getImageData(0, 0, mapImage.width, mapImage.height)
+        try {
+            const offscreen = document.createElement('canvas')
+            offscreen.width = mapImage.width
+            offscreen.height = mapImage.height
+            const ctx = offscreen.getContext('2d')
+            ctx.drawImage(mapImage, 0, 0)
+            const idata = ctx.getImageData(0, 0, mapImage.width, mapImage.height)
 
-        pixelData.current = { data: idata.data, width: mapImage.width, height: mapImage.height }
-        vizPixelData.current = null
+            console.log('MapCanvas: extracted image data', mapImage.width, mapImage.height)
 
-        // fit image to viewport
-        const container = containerRef.current
-        if (container) {
-            const scaleX = container.offsetWidth / mapImage.width
-            const scaleY = container.offsetHeight / mapImage.height
+            pixelData.current = { data: idata.data, width: mapImage.width, height: mapImage.height }
+            vizPixelData.current = null
 
-            zoom.current = Math.min(scaleX, scaleY, 1)
-            pan.current = {
-                x: (container.offsetWidth - mapImage.width * zoom.current) / 2,
-                y: (container.offsetHeight - mapImage.height * zoom.current) / 2,
+            // fit image to viewport
+            const container = containerRef.current
+            if (container) {
+                const scaleX = container.offsetWidth / mapImage.width
+                const scaleY = container.offsetHeight / mapImage.height
+
+                zoom.current = Math.min(scaleX, scaleY, 1)
+                pan.current = {
+                    x: (container.offsetWidth - mapImage.width * zoom.current) / 2,
+                    y: (container.offsetHeight - mapImage.height * zoom.current) / 2,
+                }
+                setZoom(zoom.current)
             }
-            setZoom(zoom.current)
-        }
 
-        invalidateTiles()
+                invalidateTiles()
+                // force immediate draw to help debugging — should be equivalent to scheduling
+                try {
+                    draw()
+                } catch (err) {
+                    console.error('MapCanvas: forced draw() failed', err)
+                }
+        } catch (err) {
+            console.error('MapCanvas: error extracting image data', err)
+        }
     }, [mapImage, invalidateTiles, setZoom])
 
     // map modes change
@@ -241,7 +275,7 @@ export default function MapCanvas() {
 
     // resize observer
     useEffect(() => {
-        const ro = new ResizeObserver(() => scheduleDraw())
+        const ro = new ResizeObserver(() => scheduleDrawStable())
         if (containerRef.current) ro.observe(containerRef.current)
         return () => ro.disconnect()
     }, [scheduleDrawStable])

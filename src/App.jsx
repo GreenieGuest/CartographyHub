@@ -15,7 +15,12 @@ export default function App() {
 		const reader = new FileReader()
 		reader.onload = (event) => {
 			const image = new Image()
-			image.onload = () => loadMapImage(image)
+			image.onload = () => {
+				console.log('App: image loaded, width=', image.width, 'height=', image.height)
+				window.__uploadedMap = image
+				loadMapImage(image)
+			}
+			image.onerror = (err) => console.error('App: image failed to load', err)
 			image.src = event.target.result
 		}
 		reader.readAsDataURL(file)
@@ -23,7 +28,7 @@ export default function App() {
 	}
 
 	return (
-		<div>
+		<div className="app-shell">
 			<header className="app-header">
 				Cartography Hub
 				<nav className="header-actions">

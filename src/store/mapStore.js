@@ -12,7 +12,7 @@ export const useMapStore = create((set, get) => ({
     // Reference Layers
     referenceLayers: [],
     addReferenceLayer: (image, name) => set((state) => ({
-        referenceLayers: [...state.referenceLayers, { id: Date.now(), image, name, opacity: 0.5, visible: true }]
+        referenceLayers: [...state.referenceLayers, { id: Date.now(), img: image, name, opacity: 0.5, visible: true }]
     })),
     updateLayer: (id, updates) => set((state) => ({
         referenceLayers: state.referenceLayers.map(layer => layer.id === id ? { ...layer, ...updates } : layer)
