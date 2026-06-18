@@ -59,9 +59,34 @@ export const useMapStore = create((set, get) => ({
         set({ provinceData: data, provinceDataHeaders: headers })
     },
 
+    updateProvinceField: (key, field, value) => set((state) => ({
+        provinceData: {
+            ...state.provinceData,
+            [key]: { ...state.provinceData[key], [field]: value }
+        }
+    })),
+
     registerProvince: (r, g, b) => set((state) => {
-        // Placeholder
+        const key = rgbKey(r, g, b)
+        if (state.provinceData[key]) return state // already exists
+        const headers = state.provinceDataHeaders
+        const row = {}
+        headers.forEach(h => (row[h] = ''))
+        // fill color columns
+        if (row.r !== undefined) { row.r = String(r); row.g = String(g); row.b = String(b) }
+        if (row.hex !== undefined) row.hex = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`
+        return { provinceData: {...state.provinceData, [key]: row } }
     }),
+
+    exportCSV: () => {
+        const { provinceData, provinceDataHeaders } = get()
+        if (!provinceDataHeaders.length) return null
+        const rows = [provinceDataHeaders.join(',')]
+        for (const row of Object.values(provinceData)) {
+            rows.push(provinceDataHeaders.map(h => row[h] ?? '').join(','))
+        }
+        return rows.join('\n')
+    },
 
     // Provvie Hierarchy
     hierarchy: [],
@@ -104,6 +129,13 @@ export const useMapStore = create((set, get) => ({
         const key = rgbKey(r, g, b)
         const data = get().provinceData[key] ?? null
         set({ selectedProvince: { rgb: [r, g, b], key, data } })
+    },
+
+    refreshSelectedProvince: () => {
+        const sel = get().selectedProvince
+        if (!sel) return
+        const data = get().provinceData[sel.key] ?? null
+        set({ selectedProvince: {...sel, data } })
     },
 
     // visualization settings

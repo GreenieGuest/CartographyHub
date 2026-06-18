@@ -13,7 +13,7 @@ const ZOOM_FACTOR = 1.15
 export default function MapCanvas() {
     const containerRef = useRef(null)
     const canvasRef = useRef(null) // the map canvas
-    const labelCanvasRef = useRef(null) // the map canvas
+    const labelCanvasRef = useRef(null) // labels
 
     const pan = useRef({ x: 0, y: 0 })
     const zoom = useRef(1)
