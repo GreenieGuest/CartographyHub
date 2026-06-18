@@ -35,6 +35,7 @@ export default function Toolbar() {
         brushColor, setBrushColor,
         brushSize, setBrushSize,
         addReferenceLayer,
+        exportCSV,
         loadProvinceData
     } = useMapStore()
 
@@ -52,6 +53,31 @@ export default function Toolbar() {
             reader.readAsText(file)
             e.target.value = ''
         }
+    }
+
+    const handleExportCSV = () => {
+        const csv = exportCSV()
+        if (!csv) { alert('No province data to export. Load a CSV first'); return}
+        const blob = new Blob([csv], { type: 'text/csv' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'province_data.csv'
+        a.click()
+        URL.revokeObjectURL(url)
+    }
+
+    const handleExportPNG = () => {
+        const canvas = document.querySelector('.map-canvas')
+        if (!canvas) {alert('No map loaded'); return}
+        canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'map_export.png'
+            a.click()
+            URL.revokeObjectURL(url)
+        })
     }
 
     const handleReferenceImage = (e) => {
@@ -148,6 +174,8 @@ export default function Toolbar() {
                         onChange={handleCSV}
                         style={{ display: 'none' }}
                     />
+                    <button className="btn-export" onClick={handleExportCSV}>Export CSV</button>
+                    <button className="btn-export" onClick={handleExportPNG}>Export PNG</button>
                 </div>
             </section>
 

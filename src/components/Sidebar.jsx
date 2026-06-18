@@ -39,7 +39,7 @@ function ProvincePanel() {
     const {
         selectedProvince, provinceData, provinceDataHeaders,
         updateProvinceField, refreshSelectedProvince,
-        registerProvince, exportCSV,
+        registerProvince,
         showLabels, setShowLabels,
     } = useMapStore()
 
