@@ -243,12 +243,7 @@ export default function MapCanvas() {
 
         // If there are no cached tiles yet (first frame), draw the full image as a fallback
         if (tileCache.current.size === 0) {
-            // use the original mapImage where available for immediate feedback
-            try {
-                ctx.drawImage(mapImage, px, py, imgW * z, imgH * z)
-            } catch (err) {
-                // ignore - drawing may fail if mapImage isn't usable
-            }
+            ctx.drawImage(mapImage, px, py, imgW * z, imgH * z)
         }
 
         // reference layers
@@ -264,72 +259,54 @@ export default function MapCanvas() {
         drawLabels()
     }
 
-    useEffect(() => {
-        drawRef.current = scheduleDrawStable
-    }, [scheduleDrawStable])
-
-     // invalidate and rebuild tile cache
-    const invalidateTiles = useCallback(() => {
-        tileCache.current.forEach(bmp => bmp.close?.())
-        tileCache.current.clear()
-        tileInFlight.current.clear()
-        dirty.current = true
-        scheduleDrawStable()
-    }, [scheduleDrawStable])
-
     // when an image is loaded extract the ImageData
     useEffect(() => {
         if (!mapImage) return
 
-        try {
-            const offscreen = document.createElement('canvas')
-            offscreen.width = mapImage.width
-            offscreen.height = mapImage.height
-            const ctx = offscreen.getContext('2d')
-            ctx.drawImage(mapImage, 0, 0)
-            const idata = ctx.getImageData(0, 0, mapImage.width, mapImage.height)
+        const offscreen = document.createElement('canvas')
+        offscreen.width = mapImage.width
+        offscreen.height = mapImage.height
+        const ctx = offscreen.getContext('2d')
+        ctx.drawImage(mapImage, 0, 0)
+        const idata = ctx.getImageData(0, 0, mapImage.width, mapImage.height)
 
-            console.log('MapCanvas: extracted image data', mapImage.width, mapImage.height)
+        console.log('MapCanvas: extracted image data', mapImage.width, mapImage.height)
 
-            pixelData.current = { data: idata.data, width: mapImage.width, height: mapImage.height }
-            vizPixelData.current = null
+        pixelData.current = { data: idata.data, width: mapImage.width, height: mapImage.height }
+        vizPixelData.current = null
 
-            // fit image to viewport
-            const container = containerRef.current
-            if (container) {
-                const scaleX = container.offsetWidth / mapImage.width
-                const scaleY = container.offsetHeight / mapImage.height
+        // fit image to viewport
+        const container = containerRef.current
+        if (container) {
+            const scaleX = container.offsetWidth / mapImage.width
+            const scaleY = container.offsetHeight / mapImage.height
 
-                zoom.current = Math.min(scaleX, scaleY, 1)
-                pan.current = {
-                    x: (container.offsetWidth - mapImage.width * zoom.current) / 2,
-                    y: (container.offsetHeight - mapImage.height * zoom.current) / 2,
-                }
-                setZoom(zoom.current)
+            zoom.current = Math.min(scaleX, scaleY, 1)
+            pan.current = {
+                x: (container.offsetWidth - mapImage.width * zoom.current) / 2,
+                y: (container.offsetHeight - mapImage.height * zoom.current) / 2,
             }
-
-            invalidateTiles()
-            
-            if (centroidsWorker.current) centroidsWorker.current.terminate()
-                centroidsWorker.current = new Worker(new URL('../workers/centroids.worker.js', import.meta.url), {type: 'module'})
-                centroidsWorker.current.onmessage = ({ data: msg }) => {
-                setCentroids(msg.centroids)
-                scheduleDrawStable()
-            }
-            const copy = new Uint8ClampedArray(idata.data)
-            centroidsWorker.current.postMessage(
-                { buffer: copy.buffer, width: mapImage.width, height: mapImage.height },
-                [copy.buffer]
-            )
-            try {
-                draw()
-            } catch (err) {
-                console.error('MapCanvas: forced draw() failed', err)
-            }
-        } catch (err) {
-            console.error('MapCanvas: error extracting image data', err)
+            setZoom(zoom.current)
         }
-    }, [mapImage, invalidateTiles, setZoom, setCentroids, scheduleDrawStable])
+
+        tileCache.current.forEach(b => b.close?.())
+        tileCache.current.clear()
+        tileInFlight.current.clear()
+        scheduleDrawStable()
+        
+        // centroid worker
+        if (centroidsWorker.current) centroidsWorker.current.terminate()
+            centroidsWorker.current = new Worker(new URL('../workers/centroids.worker.js', import.meta.url), {type: 'module'})
+            centroidsWorker.current.onmessage = ({ data: msg }) => {
+            setCentroids(msg.centroids)
+            scheduleDrawStable()
+        }
+        const copy = new Uint8ClampedArray(idata.data)
+        centroidsWorker.current.postMessage(
+            { buffer: copy.buffer, width: mapImage.width, height: mapImage.height },
+            [copy.buffer]
+        )
+    }, [mapImage, setZoom, setCentroids, scheduleDrawStable])
 
     // map modes change
 
@@ -337,7 +314,11 @@ export default function MapCanvas() {
         if (!pixelData.current) return
         if (visualizationMode === 'default') {
             vizPixelData.current = null
-            invalidateTiles()
+
+            tileCache.current.forEach(b => b.close?.())
+            tileCache.current.clear()
+            tileInFlight.current.clear()
+            scheduleDrawStable()
             return
         }
 
@@ -355,18 +336,20 @@ export default function MapCanvas() {
                 width: msg.width,
                 height: msg.height,
             }
-            invalidateTiles()
+            tileCache.current.forEach(b => b.close?.())
+            tileCache.current.clear()
+            tileInFlight.current.clear()
+            scheduleDrawStable()
         }
 
         vizWorker.current.postMessage(
             { buffer: copy.buffer, width, height, provinceData, visualizationMode },
             [copy.buffer]
         )
-    }, [visualizationMode, provinceData, invalidateTiles])
+    }, [visualizationMode, provinceData, scheduleDrawStable])
 
     // redraw when user changes reference layers
-    useEffect(() => { scheduleDrawStable() }, [showLabels, centroids, scheduleDrawStable])
-    useEffect(() => { scheduleDrawStable() }, [referenceLayers, scheduleDrawStable])
+    useEffect(() => { scheduleDrawStable() }, [showLabels, centroids, referenceLayers, scheduleDrawStable])
 
     // resize observer
     useEffect(() => {
@@ -384,7 +367,7 @@ export default function MapCanvas() {
 
     const getPixelAt = (ix, iy) => {
         const src = pixelData.current
-        if (!src) return null
+        if (!src || !src.data) return null
         if (ix < 0 || iy < 0 || ix >= src.width || iy >= src.height) return null
         const i = (iy * src.width + ix) * 4
         return { r: src.data[i], g: src.data[i + 1], b: src.data[i + 2]}
@@ -394,8 +377,8 @@ export default function MapCanvas() {
 
     const paintBrush = useCallback((ix, iy) => {
         const src = pixelData.current
-        if (!src) return
-        const { data, width, height } = src
+        if (!src || !src.data) return
+        const { brushSize, brushSize } = storeRef.current
         const hex = brushColor.replace('#', '')
         const fr = parseInt(hex.substring(0,2),16)
         const fg = parseInt(hex.substring(2,4),16)
@@ -403,6 +386,7 @@ export default function MapCanvas() {
         const r = Math.ceil(brushSize / 2)
 
         // paint circle
+        const { data, width, height } = src
         const affectedTiles = new Set()
         for (let dy = -r; dy <= r; dy++) {
             for (let dx = -r; dx <= r; dx++) {
@@ -421,14 +405,12 @@ export default function MapCanvas() {
             tileCache.current.delete(key)
             tileInFlight.current.delete(key)
         })
-        dirty.current = true
         scheduleDrawStable()
-    }, [brushColor, brushSize, scheduleDrawStable])
+    }, [scheduleDrawStable])
 
     const floodFill = useCallback((ix, iy) => {
         const src = pixelData.current
-        if (!src) return
-        const hex = brushColor.replace('#', '')
+        if (!src || !src.data) return
         const fillR = parseInt(hex.substring(0,2),16)
         const fillG = parseInt(hex.substring(2,4),16)
         const fillB = parseInt(hex.substring(4,6),16)
@@ -444,14 +426,17 @@ export default function MapCanvas() {
 
         fillWorker.current.onmessage = ({data: msg}) => {
             pixelData.current.data = new Uint8ClampedArray(msg.buffer)
-            invalidateTiles()
+            tileCache.current.forEach(b => b.close?.())
+            tileCache.current.clear()
+            tileInFlight.current.clear()
+            scheduleDrawStable()
         }
 
         fillWorker.current.postMessage(
-            { buffer, width, height, startX: ix, startY: iy, fillR, fillG, fillB}, [buffer]
+            { buffer, width, height, startX: ix, startY: iy, fillR, fillG, fillB }, [buffer]
         )
         src.data = null
-    }, [brushColor, invalidateTiles])
+    }, [scheduleDrawStable])
 
     // Mouse handlers
     const getCanvasXY = (e) => {
@@ -471,6 +456,7 @@ export default function MapCanvas() {
 
         const { sx, sy } = getCanvasXY(e)
         const { x: ix, y: iy } = screenToImage(sx, sy)
+        const { activeTool, selectProvince } = storeRef.current
 
         if (activeTool === 'select') {
             const px = getPixelAt(ix, iy)
@@ -481,7 +467,7 @@ export default function MapCanvas() {
         } else if (activeTool === 'fill') {
             floodFill(ix, iy)
         }
-    }, [activeTool, selectProvince, paintBrush, floodFill])
+    }, [paintBrush, floodFill])
 
     const onMouseMove = useCallback((e) => {
         if (isPanning.current) {
@@ -490,12 +476,15 @@ export default function MapCanvas() {
             lastMouse.current = { x: e.clientX, y: e.clientY }
             dirty.current = true
             scheduleDrawStable()
-        } else if (isDrawing.current && activeTool === 'brush') {
-            const { sx, sy } = getCanvasXY(e)
-            const { x: ix, y: iy } = screenToImage(sx, sy)
-            paintBrush(ix, iy)
+        } else if (isDrawing.current) {
+            const { activeTool } = storeRef.current
+            if (activeTool === 'brush') {
+                const { sx, sy } = getCanvasXY(e)
+                const { x: ix, y: iy } = screenToImage(sx, sy)
+                paintBrush(ix, iy)
+            }
         }
-    }, [activeTool, paintBrush, scheduleDrawStable])
+    }, [paintBrush, scheduleDrawStable])
 
     const onMouseUp = useCallback(() => {
         isPanning.current = false
@@ -512,10 +501,9 @@ export default function MapCanvas() {
         pan.current.x = sx - (sx - pan.current.x) * (newZoom / zoom.current)
         pan.current.y = sy - (sy - pan.current.y) * (newZoom / zoom.current)
         zoom.current = newZoom
-        setZoom(newZoom)
-        dirty.current = true
+        storeRef.current.setZoom(newZoom)
         scheduleDrawStable()
-    }, [scheduleDrawStable, setZoom])
+    }, [scheduleDrawStable])
 
     useEffect(() => {
         const el = canvasRef.current
@@ -538,7 +526,7 @@ export default function MapCanvas() {
     const cursor = { select:'crosshair', brush:'cell', fill:'cell', wand:'copy' }[activeTool] || 'default'
 
     return (
-        <div ref={containerRef} className='canvas-container'>
+        <div ref={containerRef} className="canvas-container">
             <canvas
                 ref={canvasRef}
                 className="map-canvas"
@@ -551,7 +539,7 @@ export default function MapCanvas() {
             <canvas
                 ref={labelCanvasRef}
                 className="map-canvas"
-                style={{pointerEvents: 'none'}}
+                style={{pointerEvents: 'none', width: '100%', height: '100%'}}
             />
         </div>
     )
