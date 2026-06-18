@@ -26,6 +26,7 @@ self.onmessage = ({ data }) => {
     }
 
     const getVizColor = (province) => {
+        if (visualizationMode === 'assigned') return province ? [0,255,0] : [0,0,0]
         if (!province) return null
         if (visualizationMode === 'tradeGood') {
             const g = (province.tradeGood || province.grade_good || province.raw_material || '').toLowerCase()

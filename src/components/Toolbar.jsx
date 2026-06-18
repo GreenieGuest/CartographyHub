@@ -10,6 +10,7 @@ const TOOLS = [
 
 const VIEWS = [
     { id: 'default', label: 'Default (Location)'},
+    { id: 'assigned', label: 'Assigned'},
     { id: 'tradeGood', label: 'Trade Goods'},
     { id: 'population', label: 'Population'},
     { id: 'vegetation', label: 'Vegetation'},
