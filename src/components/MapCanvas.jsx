@@ -18,7 +18,6 @@ export default function MapCanvas() {
     const pan = useRef({ x: 0, y: 0 })
     const zoom = useRef(1)
     const rafId = useRef(null)
-    const dirty = useRef(true)
 
     // tile cache
     const tileCache = useRef(new Map())
@@ -46,7 +45,7 @@ export default function MapCanvas() {
         selectProvince, setZoom,
         visualizationMode, provinceData,
         showLabels, centroids, setCentroids,
-    } = useMapStore()
+    } = store
 
     // Tile Generation (splits large maps into grid to not crash your PC)
     // creates ImageBitmap from pixelData
@@ -118,7 +117,7 @@ export default function MapCanvas() {
         const px = pan.current.x
         const py = pan.current.y
 
-        let labelsToDraw = []
+        const labelsToDraw = []
 
         for (const [key, c] of Object.entries(centroids)) {
             const text = getLabelText(key)
@@ -378,7 +377,7 @@ export default function MapCanvas() {
     const paintBrush = useCallback((ix, iy) => {
         const src = pixelData.current
         if (!src || !src.data) return
-        const { brushSize, brushSize } = storeRef.current
+        const { brushColor, brushSize } = storeRef.current
         const hex = brushColor.replace('#', '')
         const fr = parseInt(hex.substring(0,2),16)
         const fg = parseInt(hex.substring(2,4),16)
@@ -411,6 +410,8 @@ export default function MapCanvas() {
     const floodFill = useCallback((ix, iy) => {
         const src = pixelData.current
         if (!src || !src.data) return
+        const { brushColor } = storeRef.current
+        const hex = brushColor.replace('#', '')
         const fillR = parseInt(hex.substring(0,2),16)
         const fillG = parseInt(hex.substring(2,4),16)
         const fillB = parseInt(hex.substring(4,6),16)
@@ -424,7 +425,7 @@ export default function MapCanvas() {
         const { width, height } = src
         const buffer = src.data.buffer
 
-        fillWorker.current.onmessage = ({data: msg}) => {
+        fillWorker.current.onmessage = ({ data: msg }) => {
             pixelData.current.data = new Uint8ClampedArray(msg.buffer)
             tileCache.current.forEach(b => b.close?.())
             tileCache.current.clear()
@@ -448,7 +449,7 @@ export default function MapCanvas() {
         // Pan: middle mouse or alt + left (probably gonna change later :/)
         if (e.button === 1 || (e.button === 0 && e.altKey)) {
             isPanning.current = true
-            lastMouse.current = { x: e.clientX, y: e.clientY}
+            lastMouse.current = { x: e.clientX, y: e.clientY }
             e.preventDefault()
             return
         }
@@ -474,7 +475,6 @@ export default function MapCanvas() {
             pan.current.x += e.clientX - lastMouse.current.x
             pan.current.y += e.clientY - lastMouse.current.y
             lastMouse.current = { x: e.clientX, y: e.clientY }
-            dirty.current = true
             scheduleDrawStable()
         } else if (isDrawing.current) {
             const { activeTool } = storeRef.current
