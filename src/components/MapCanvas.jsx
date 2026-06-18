@@ -114,36 +114,49 @@ export default function MapCanvas() {
             return p.name || null
         }
 
+        const isAggregate = ['region', 'area', 'province', 'continent', 'subcontinent', 'owner'].includes(visualizationMode)
+
         const px = pan.current.x
         const py = pan.current.y
 
         const labelsToDraw = []
 
-        for (const [key, c] of Object.entries(centroids)) {
-            const text = getLabelText(key)
-            if (!text) continue
-            const screenPx = c.count * z * z
-            if (screenPx < LABEL_MIN_SCREEN_PX) continue
-            const sx = px + c.cx * z
-            const sy = py + c.cy * z
-            if (sx < -200 || sy < -40 || sx > cw + 200 || sy > ch + 40) continue
-            labelsToDraw.push({text, sx, sy })
+        if (isAggregate) {
+            const groups = {}
+            for (const [key, c] of Object.entries(centroids)) {
+                if (c.count * z * z < LABEL_MIN_SCREEN_PX) continue
+                const text = getLabelText(key)
+                if (!text) continue
+                if (!groups[text]) groups[text] = { sumCx: 0, sumCy: 0, n: 0 }
+                groups[text].sumCx += c.cx
+                groups[text].sumCy += c.cy
+                groups[text].n++
+            }
+            for (const [text, g] of Object.entries(groups)) {
+                const sx = px + (g.sumCx / g.n) * z
+                const sy = py + (g.sumCy / g.n) * z
+                if (sx < -300 || sy < -50 || sx > cw + 300 || sy > ch + 50) continue
+                labelsToDraw.push({text, sx, sy, big: true })
+            }
+        } else {
+            for (const [key, c] of Object.entries(centroids)) {
+                if (c.count * z * z < LABEL_MIN_SCREEN_PX) continue
+                const text = getLabelText(key)
+                if (!text) continue
+                const sx = px + c.cx * z
+                const sy = py + c.cy * z
+                if (sx < -300 || sy < -50 || sx > cw + 300 || sy > ch + 50) continue
+                labelsToDraw.push({ text, sx, sy, big: false })
+            }
         }
 
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
 
-        for (const {text, sx, sy } of labelsToDraw) {
-            const fontSize = Math.max(7, Math.min(13, z * 40))
-            const fontWeight = 500
-            ctx.font = `${fontWeight} ${fontSize}px Inter, system-ui, sans-serif`
+        for (const {text, sx, sy, big } of labelsToDraw) {
+            const fontSize   = big ? Math.max(9, Math.min(18, z * 80)) : Math.max(7, Math.min(13, z * 40))
+            ctx.font = `${big ? '700' : '500'} ${fontSize}px Inter, system-ui, sans-serif`
 
-            // measure for outline box
-            const metrics = ctx.measureText(text)
-            const tw = metrics.width
-            const th = fontSize
-
-            // text should be outlined (easier to read)
             ctx.globalAlpha = 0.75
             ctx.fillStyle = '#000'
             const offsets = [[-1,-1],[1,-1],[-1,1],[1,1],[0,-1],[0,1],[-1,0],[1,0]]
@@ -152,7 +165,7 @@ export default function MapCanvas() {
             }
             ctx.globalAlpha = 1
 
-            ctx.fillStyle = '#fff'
+            ctx.fillStyle   = big ? '#fff' : '#f0f0e0'
             ctx.fillText(text, sx, sy)
         }
     }
