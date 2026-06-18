@@ -104,6 +104,10 @@ export const useMapStore = create((set, get) => ({
     visualizationMode: 'default',
     setVisualizationMode: (mode) => set({ visualizationMode: mode }),
     
+    // Centroids
+    centroids: {},
+    setCentroids: (centroids) => set({ centroids }),
+
     // zoom / pan
     zoom: 1,
     setZoom: (zoom) => set({ zoom }),
