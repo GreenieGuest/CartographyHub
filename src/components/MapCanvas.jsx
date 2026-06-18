@@ -36,13 +36,17 @@ export default function MapCanvas() {
     const isDrawing = useRef(false)
     const lastMouse = useRef({ x: 0, y: 0 })
 
+    const storeRef = useRef({})
+    const store = useMapStore()
+    storeRef.current = store
+
     const {
         mapImage, referenceLayers,
         activeTool, brushColor, brushSize,
         selectProvince, setZoom,
         visualizationMode, provinceData,
         showLabels, centroids, setCentroids,
-    } = useMapStore()
+    } = store
 
     // Tile Generation (splits large maps into grid to not crash your PC)
     // creates ImageBitmap from pixelData
@@ -316,6 +320,11 @@ export default function MapCanvas() {
                 { buffer: copy.buffer, width: mapImage.width, height: mapImage.height },
                 [copy.buffer]
             )
+            try {
+                draw()
+            } catch (err) {
+                console.error('MapCanvas: forced draw() failed', err)
+            }
         } catch (err) {
             console.error('MapCanvas: error extracting image data', err)
         }

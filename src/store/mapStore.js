@@ -103,6 +103,8 @@ export const useMapStore = create((set, get) => ({
     // visualization settings
     visualizationMode: 'default',
     setVisualizationMode: (mode) => set({ visualizationMode: mode }),
+    showLabels: true,
+    setShowLabels: (show) => set({ showLabels: show }),
     
     // Centroids
     centroids: {},

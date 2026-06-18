@@ -30,6 +30,7 @@ export default function Toolbar() {
     const {
         activeTool, setActiveTool,
         visualizationMode, setVisualizationMode,
+        showLabels, setShowLabels,
         brushColor, setBrushColor,
         brushSize, setBrushSize,
         addReferenceLayer,
@@ -102,7 +103,7 @@ export default function Toolbar() {
                                 Size:
                                 <input
                                     type="range"
-                                    min="1"
+                                    min="0"
                                     max="100"
                                     value={brushSize}
                                     onChange={(e) => setBrushSize(parseInt(e.target.value))}
@@ -126,6 +127,14 @@ export default function Toolbar() {
                         </button>
                     ))}
                 </div>
+                <label className="toolbar-checkbox">
+                    <input
+                        type="checkbox"
+                        checked={showLabels}
+                        onChange={(e) => setShowLabels(e.target.checked)}
+                    />
+                    Show labels
+                </label>
             </section>
 
             <section className="toolbar-section">
