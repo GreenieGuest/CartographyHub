@@ -6,11 +6,14 @@ import { useMapStore } from '../store/mapStore'
 const TILE_SIZE = 512
 const MIN_ZOOM = 0.05
 const MAX_ZOOM = 32
+const LABEL_MIN_ZOOM = 0.15
+const LABEL_MIN_SCREEN_PX = 400
 const ZOOM_FACTOR = 1.15
 
 export default function MapCanvas() {
     const containerRef = useRef(null)
     const canvasRef = useRef(null) // the map canvas
+    const labelCanvasRef = useRef(null) // the map canvas
 
     const pan = useRef({ x: 0, y: 0 })
     const zoom = useRef(1)
@@ -26,6 +29,7 @@ export default function MapCanvas() {
     const vizPixelData = useRef(null)
     const vizWorker = useRef(null)
     const fillWorker = useRef(null)
+    const centroidsWorker = useRef(null)
 
     // interactions
     const isPanning = useRef(false)
@@ -37,6 +41,7 @@ export default function MapCanvas() {
         activeTool, brushColor, brushSize,
         selectProvince, setZoom,
         visualizationMode, provinceData,
+        showLabels, centroids, setCentroids,
     } = useMapStore()
 
     // Tile Generation (splits large maps into grid to not crash your PC)
@@ -224,17 +229,23 @@ export default function MapCanvas() {
                 setZoom(zoom.current)
             }
 
-                invalidateTiles()
-                // force immediate draw to help debugging — should be equivalent to scheduling
-                try {
-                    draw()
-                } catch (err) {
-                    console.error('MapCanvas: forced draw() failed', err)
-                }
+            invalidateTiles()
+            
+            if (centroidsWorker.current) centroidsWorker.current.terminate()
+                centroidsWorker.current = new Worker(new URL('../workers/centroids.worker.js', import.meta.url), {type: 'module'})
+                centroidsWorker.current.onmessage = ({ data: msg }) => {
+                setCentroids(msg.centroids)
+                scheduleDrawStable()
+            }
+            const copy = new Uint8ClampedArray(idata.data)
+            centroidsWorker.current.postMessage(
+                { buffer: copy.buffer, width: mapImage.width, height: mapImage.height },
+                [copy.buffer]
+            )
         } catch (err) {
             console.error('MapCanvas: error extracting image data', err)
         }
-    }, [mapImage, invalidateTiles, setZoom])
+    }, [mapImage, invalidateTiles, setZoom, setCentroids, scheduleDrawStable])
 
     // map modes change
 
