@@ -46,7 +46,7 @@ export default function MapCanvas() {
         selectProvince, setZoom,
         visualizationMode, provinceData,
         showLabels, centroids, setCentroids,
-    } = store
+    } = useMapStore()
 
     // Tile Generation (splits large maps into grid to not crash your PC)
     // creates ImageBitmap from pixelData
@@ -67,19 +67,32 @@ export default function MapCanvas() {
         return createImageBitmap(tile) // returns Promise<ImageBitmap>
     }, [])
 
-    const drawLabels = useCallback(() => {
+    const scheduleDrawStable = useCallback(() => {
+        if (rafId.current) cancelAnimationFrame(rafId.current)
+        rafId.current = requestAnimationFrame(() => {
+            rafId.current = null
+            drawFrame()
+        })
+    }, [])
+
+    function drawLabels() {
         const canvas = labelCanvasRef.current
-        if (!canvas || !pixelData.current) return
+        if (!canvas) return
+        const container = containerRef.current
+        if (!container) return
         const ctx = canvas.getContext('2d')
-        const { offsetWidth: cw, offsetHeight: ch } = containerRef.current
+        const cw = container.offsetWidth
+        const ch = container.offsetHeight
         if (canvas.width !== cw || canvas.height !== ch) {
             canvas.width = cw
             canvas.height = ch
         }
         ctx.clearRect(0, 0, cw, ch)
 
+        const { showLabels, centroids, provinceData, visualizationMode } = storeRef.current
         const z = zoom.current
-        if (!showLabels || z < LABEL_MIN_ZOOM || !Object.keys(centroids).length) return
+        if (!showLabels || z < LABEL_MIN_ZOOM || !pixelData.current) return
+        if (!centroids || Object.keys(centroids).length === 0) return
 
         // show label based on current map mode, EG "Horses" everywhere for trade goods/raw material
 
@@ -92,9 +105,12 @@ export default function MapCanvas() {
             if (visualizationMode === 'region') return p.region || null
             if (visualizationMode === 'area') return p.area || null
             if (visualizationMode === 'province') return p.province || null
-            if (visualizationMode === 'population') return p.population || null
+            if (visualizationMode === 'culture') return p.culture || null
+            if (visualizationMode === 'religion') return p.religion || null
+            if (visualizationMode === 'population') return p.population || p.Population ? String(p.population || p.Population) : null
             if (visualizationMode === 'climate') return p.climate || null
             if (visualizationMode === 'vegetation') return p.vegetation || null
+            if (visualizationMode === 'terrain') return p.topography || p.terrain || null
             // if unsupported or there is nothing then return province name
             return p.name || null
         }
@@ -135,38 +151,40 @@ export default function MapCanvas() {
             for (const [ox, oy] of offsets) {
                 ctx.fillText(text, sx + ox, sy + oy)
             }
+            ctx.globalAlpha = 1
 
-            ctx.fillStyle = aggregate ? '#fff' : '#f0f0e0'
+            ctx.fillStyle = '#fff'
             ctx.fillText(text, sx, sy)
         }
-    }, [centroids, provinceData, showLabels, visualizationMode])
+    }
+
+    function drawEmpty(ctx, w, h) { // placeholder
+        ctx.fillStyle = '#1a1c14'
+        ctx.fillRect(0, 0, w, h)
+        ctx.fillStyle = '#3a3d30'
+        ctx.font = '14px Inter, system-ui, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('Load a map image to begin', w / 2, h / 2)
+    }
 
     // draw loop
 
-    const drawRef = useRef(null)
-
-    const draw = useCallback(() => {
-        rafId.current = null
-        const canvas = canvasRef.current
-        if (!canvas) {
-            console.log('MapCanvas.draw: no canvas element')
-            return
-        }
+    function drawFrame() {
+        const canvas = labelCanvasRef.current
+        if (!canvas) return
+        const container = containerRef.current
+        if (!container) return
         const ctx = canvas.getContext('2d')
-
-        try {
-            console.log('MapCanvas.draw: canvas', canvas.width, canvas.height, 'pan', pan.current, 'zoom', zoom.current, 'tiles', tileCache.current.size)
-        } catch (err) {
-            console.log('MapCanvas.draw: log failed', err)
-        }
-
-        const { offsetWidth: cw, offsetHeight: ch } = containerRef.current
+        const cw = container.offsetWidth
+        const ch = container.offsetHeight
+        if (!cw || !ch) return
         if (canvas.width !== cw || canvas.height !== ch) {
             canvas.width = cw
             canvas.height = ch
         }
-
         ctx.clearRect(0, 0, cw, ch)
+
+        const { mapImage, visualizationMode, referenceLayers } = storeRef.current
 
         if (!mapImage) {
             console.log('MapCanvas.draw: mapImage is null')
@@ -217,7 +235,7 @@ export default function MapCanvas() {
                         if (!bitmap) return
                         tileCache.current.set(key, bitmap)
                         tileInFlight.current.delete(key)
-                        drawRef.current?.()
+                        scheduleDrawStable()
                     })
                 }
             }
@@ -243,16 +261,8 @@ export default function MapCanvas() {
 
         ctx.restore()
         console.log('MapCanvas.draw: finished frame')
-        dirty.current = false
-    }, [mapImage, visualizationMode, referenceLayers, createTile, drawLabels])
-
-    const scheduleDrawStable = useCallback(() => {
-        if (rafId.current) return
-        rafId.current = requestAnimationFrame(() => {
-            rafId.current = null
-            draw()
-        })
-    }, [draw])
+        drawLabels()
+    }
 
     useEffect(() => {
         drawRef.current = scheduleDrawStable
@@ -266,15 +276,6 @@ export default function MapCanvas() {
         dirty.current = true
         scheduleDrawStable()
     }, [scheduleDrawStable])
-
-    function drawEmpty(ctx, w, h) { // placeholder
-        ctx.fillStyle = '#1a1c14'
-        ctx.fillRect(0, 0, w, h)
-        ctx.fillStyle = '#3a3d30'
-        ctx.font = '14px Inter, system-ui, sans-serif'
-        ctx.textAlign = 'center'
-        ctx.fillText('Load a map image to begin', w / 2, h / 2)
-    }
 
     // when an image is loaded extract the ImageData
     useEffect(() => {
