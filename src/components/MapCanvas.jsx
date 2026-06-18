@@ -98,18 +98,21 @@ export default function MapCanvas() {
         const getLabelText = (key) => {
             const p = provinceData[key]
             if (!p) return null
-            if (visualizationMode === 'tradeGood') return p.raw_material || p.tradeGood || null
             if (visualizationMode === 'continent') return p.continent || null
             if (visualizationMode === 'subcontinent') return p.subcontinent || null
             if (visualizationMode === 'region') return p.region || null
             if (visualizationMode === 'area') return p.area || null
             if (visualizationMode === 'province') return p.province || null
+
+            if (visualizationMode === 'owner') return p.owner || null
             if (visualizationMode === 'culture') return p.culture || null
             if (visualizationMode === 'religion') return p.religion || null
             if (visualizationMode === 'population') return p.population || p.Population ? String(p.population || p.Population) : null
+
             if (visualizationMode === 'climate') return p.climate || null
             if (visualizationMode === 'vegetation') return p.vegetation || null
             if (visualizationMode === 'terrain') return p.topography || p.terrain || null
+            if (visualizationMode === 'tradeGood') return p.raw_material || p.tradeGood || null
             // if unsupported or there is nothing then return province name
             return p.name || null
         }
@@ -170,19 +173,10 @@ export default function MapCanvas() {
         }
     }
 
-    function drawEmpty(ctx, w, h) { // placeholder
-        ctx.fillStyle = '#1a1c14'
-        ctx.fillRect(0, 0, w, h)
-        ctx.fillStyle = '#3a3d30'
-        ctx.font = '14px Inter, system-ui, sans-serif'
-        ctx.textAlign = 'center'
-        ctx.fillText('Load a map image to begin', w / 2, h / 2)
-    }
-
     // draw loop
 
     function drawFrame() {
-        const canvas = labelCanvasRef.current
+        const canvas = canvasRef.current
         if (!canvas) return
         const container = containerRef.current
         if (!container) return
@@ -200,7 +194,6 @@ export default function MapCanvas() {
 
         if (!mapImage) {
             console.log('MapCanvas.draw: mapImage is null')
-            drawEmpty(ctx, cw, ch)
             return
         }
 

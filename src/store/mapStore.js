@@ -31,6 +31,8 @@ export const useMapStore = create((set, get) => ({
 
     // Provvie Data
     provinceData: {},
+    provinceDataHeaders: [],
+
     loadProvinceData: (csvText) => {
         const lines = csvText.trim().split('\n')
         const headers = lines[0].split(',').map(h => h.trim())
@@ -54,8 +56,12 @@ export const useMapStore = create((set, get) => ({
                 }
             }
         }
-        set({ provinceData: data })
+        set({ provinceData: data, provinceDataHeaders: headers })
     },
+
+    registerProvince: (r, g, b) => set((state) => {
+        // Placeholder
+    }),
 
     // Provvie Hierarchy
     hierarchy: [],
