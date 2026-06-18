@@ -63,6 +63,80 @@ export default function MapCanvas() {
         return createImageBitmap(tile) // returns Promise<ImageBitmap>
     }, [])
 
+    const drawLabels = useCallback(() => {
+        const canvas = labelCanvasRef.current
+        if (!canvas || !pixelData.current) return
+        const ctx = canvas.getContext('2d')
+        const { offsetWidth: cw, offsetHeight: ch } = containerRef.current
+        if (canvas.width !== cw || canvas.height !== ch) {
+            canvas.width = cw
+            canvas.height = ch
+        }
+        ctx.clearRect(0, 0, cw, ch)
+
+        const z = zoom.current
+        if (!showLabels || z < LABEL_MIN_ZOOM || !Object.keys(centroids).length) return
+
+        // show label based on current map mode, EG "Horses" everywhere for trade goods/raw material
+
+        const getLabelText = (key) => {
+            const p = provinceData[key]
+            if (!p) return null
+            if (visualizationMode === 'tradeGood') return p.raw_material || p.tradeGood || null
+            if (visualizationMode === 'continent') return p.continent || null
+            if (visualizationMode === 'subcontinent') return p.subcontinent || null
+            if (visualizationMode === 'region') return p.region || null
+            if (visualizationMode === 'area') return p.area || null
+            if (visualizationMode === 'province') return p.province || null
+            if (visualizationMode === 'population') return p.population || null
+            if (visualizationMode === 'climate') return p.climate || null
+            if (visualizationMode === 'vegetation') return p.vegetation || null
+            // if unsupported or there is nothing then return province name
+            return p.name || null
+        }
+
+        const px = pan.current.x
+        const py = pan.current.y
+
+        let labelsToDraw = []
+
+        for (const [key, c] of Object.entries(centroids)) {
+            const text = getLabelText(key)
+            if (!text) continue
+            const screenPx = c.count * z * z
+            if (screenPx < LABEL_MIN_SCREEN_PX) continue
+            const sx = px + c.cx * z
+            const sy = py + c.cy * z
+            if (sx < -200 || sy < -40 || sx > cw + 200 || sy > ch + 40) continue
+            labelsToDraw.push({text, sx, sy })
+        }
+
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+
+        for (const {text, sx, sy } of labelsToDraw) {
+            const fontSize = Math.max(7, Math.min(13, z * 40))
+            const fontWeight = 500
+            ctx.font = `${fontWeight} ${fontSize}px Inter, system-ui, sans-serif`
+
+            // measure for outline box
+            const metrics = ctx.measureText(text)
+            const tw = metrics.width
+            const th = fontSize
+
+            // text should be outlined (easier to read)
+            ctx.globalAlpha = 0.75
+            ctx.fillStyle = '#000'
+            const offsets = [[-1,-1],[1,-1],[-1,1],[1,1],[0,-1],[0,1],[-1,0],[1,0]]
+            for (const [ox, oy] of offsets) {
+                ctx.fillText(text, sx + ox, sy + oy)
+            }
+
+            ctx.fillStyle = aggregate ? '#fff' : '#f0f0e0'
+            ctx.fillText(text, sx, sy)
+        }
+    }, [centroids, provinceData, showLabels, visualizationMode])
+
     // draw loop
 
     const drawRef = useRef(null)
@@ -166,7 +240,7 @@ export default function MapCanvas() {
         ctx.restore()
         console.log('MapCanvas.draw: finished frame')
         dirty.current = false
-    }, [mapImage, visualizationMode, referenceLayers, createTile])
+    }, [mapImage, visualizationMode, referenceLayers, createTile, drawLabels])
 
     const scheduleDrawStable = useCallback(() => {
         if (rafId.current) return
@@ -281,7 +355,7 @@ export default function MapCanvas() {
     }, [visualizationMode, provinceData, invalidateTiles])
 
     // redraw when user changes reference layers
-
+    useEffect(() => { scheduleDrawStable() }, [showLabels, centroids, scheduleDrawStable])
     useEffect(() => { scheduleDrawStable() }, [referenceLayers, scheduleDrawStable])
 
     // resize observer
@@ -442,8 +516,11 @@ export default function MapCanvas() {
 
     // cleanup
     useEffect(() => () => {
+        // terminate all the workers
         vizWorker.current?.terminate()
         fillWorker.current?.terminate()
+        centroidsWorker.current?.terminate()
+
         if (rafId.current) cancelAnimationFrame(rafId.current)
         tileCache.current.forEach(b => b.close?.())
     }, [])
@@ -460,6 +537,11 @@ export default function MapCanvas() {
                 onMouseMove={onMouseMove}
                 onMouseUp={onMouseUp}
                 onMouseLeave={onMouseUp}
+            />
+            <canvas
+                ref={labelCanvasRef}
+                className="map-canvas"
+                style={{pointerEvents: 'none'}}
             />
         </div>
     )
