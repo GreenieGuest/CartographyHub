@@ -86,7 +86,7 @@ export default function App() {
 	return (
 		<div className="app-shell">
 			<header className="app-header">
-				Cartography Hub
+				CartographyHub
 				<nav className="header-actions">
 					<button className="btn-ghost" onClick={()=> fileInputRef.current?.click()}>
 						Load Map Image
