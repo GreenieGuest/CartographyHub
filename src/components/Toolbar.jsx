@@ -67,19 +67,6 @@ export default function Toolbar() {
         URL.revokeObjectURL(url)
     }
 
-    const handleExportPNG = () => {
-        const canvas = document.querySelector('.map-canvas')
-        if (!canvas) {alert('No map loaded'); return}
-        canvas.toBlob(blob => {
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = 'map_export.png'
-            a.click()
-            URL.revokeObjectURL(url)
-        })
-    }
-
     const handleReferenceImage = (e) => {
         const file = e.target.files[0]
         if (file) {
@@ -175,7 +162,6 @@ export default function Toolbar() {
                         style={{ display: 'none' }}
                     />
                     <button className="btn-export" onClick={handleExportCSV}>Export CSV</button>
-                    <button className="btn-export" onClick={handleExportPNG}>Export PNG</button>
                 </div>
             </section>
 
