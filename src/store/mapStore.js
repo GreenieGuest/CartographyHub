@@ -74,7 +74,7 @@ export const useMapStore = create((set, get) => ({
         headers.forEach(h => (row[h] = ''))
         // fill color columns
         if (row.r !== undefined) { row.r = String(r); row.g = String(g); row.b = String(b) }
-        if (row.hex !== undefined) row.hex = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`
+        if (row.color !== undefined) row.color = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`
         return { provinceData: {...state.provinceData, [key]: row } }
     }),
 
