@@ -14,6 +14,7 @@ const VIEWS = [
     { id: 'tradeGood', label: 'Trade Goods'},
     { id: 'population', label: 'Population'},
     { id: 'vegetation', label: 'Vegetation'},
+    { id: 'terrain', label: 'Topography'},
     { id: 'climate', label: 'Climate'},
     { id: 'owner', label: 'Owner'},
     { id: 'culture', label: 'Culture'},
@@ -25,6 +26,7 @@ const VIEWS = [
     { id: 'region', label: 'Region'},
     { id: 'area', label: 'Area'},
     { id: 'province', label: 'Province'},
+    { id: 'isCoastal', label: 'Coastal'},
 ]
 
 export default function Toolbar() {

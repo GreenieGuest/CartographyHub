@@ -40,6 +40,10 @@ self.onmessage = ({ data }) => {
             const g = (province.terrain || province.topography || '').toLowerCase()
             return TERRAIN_COLORS[g] || hashColor(g)
         }
+        if (visualizationMode === 'vegetation') {
+            const g = (province.vegetation || '').toLowerCase()
+            return TERRAIN_COLORS[g] || hashColor(g)
+        }
         if (visualizationMode === 'population') {
             const g = Number(province.population || '')
             return (getColorOnScale(g, 0, 150000))
@@ -59,8 +63,8 @@ self.onmessage = ({ data }) => {
         if (visualizationMode === 'area') return hashColor(province.area || '')
         if (visualizationMode === 'province') return hashColor(province.province || '')
         if (visualizationMode === 'isCoastal') {
-            const c = province.isCoastal || province.is_coastal || ''
-            return (c === '1' || c.toLowerCase() === 'true') ? [70,130,180] : [139,115,85]
+            const c = province.isCoastal || province.is_coastal || province.coastal || ''
+            return (c === '1' || c.toLowerCase() === 'true' || c.toLowerCase() === 'yes') ? [70,130,180] : [139,115,85]
         }
         return null
     }
