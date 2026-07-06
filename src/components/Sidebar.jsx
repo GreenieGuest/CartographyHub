@@ -77,7 +77,7 @@ function ProvincePanel() {
 
             if (p.area == data.area) {
                 for (const field of cols) {
-                    if (field == 'vegetation' || field == 'terrain' || field == 'climate' || field == 'tradeGood' || field == 'topography' || field == 'raw_material' || field == 'region' || field == 'owner' || field == 'religion' || field == 'culture') {
+                    if (field == 'vegetation' || field == 'terrain' || field == 'climate' || field == 'tradeGood' || field == 'topography' || field == 'raw_material' || field == 'region' || field == 'owner' || field == 'religion' || field == 'culture' || field == 'population') {
                         updateProvinceField(pKey, field, data[field] ?? '')
                     }
                 }
@@ -91,7 +91,7 @@ function ProvincePanel() {
 
             if (p.region == data.region) {
                 for (const field of cols) {
-                    if (field == 'vegetation' || field == 'terrain' || field == 'climate' || field == 'tradeGood' || field == 'topography' || field == 'raw_material' || field == 'region' || field == 'owner' || field == 'religion' || field == 'culture') {
+                    if (field == 'vegetation' || field == 'terrain' || field == 'climate' || field == 'tradeGood' || field == 'topography' || field == 'raw_material' || field == 'region' || field == 'owner' || field == 'religion' || field == 'culture' || field == 'population') {
                         updateProvinceField(pKey, field, data[field] ?? '')
                     }
                 }
