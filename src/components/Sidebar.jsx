@@ -71,6 +71,34 @@ function ProvincePanel() {
         ? provinceDataHeaders
         : data ? Object.keys(data) : []
 
+    const handleCopyArea = () => {
+        for (const pKey in provinceData) {
+            const p = provinceData[pKey]
+
+            if (p.area == data.area) {
+                for (const field of cols) {
+                    if (field == 'vegetation' || field == 'terrain' || field == 'climate' || field == 'tradeGood' || field == 'topography' || field == 'raw_material' || field == 'region' || field == 'owner') {
+                        updateProvinceField(pKey, field, data[field] ?? '')
+                    }
+                }
+            }
+        }
+    }
+
+    const handleCopyRegion = () => {
+        for (const pKey in provinceData) {
+            const p = provinceData[pKey]
+
+            if (p.region == data.region) {
+                for (const field of cols) {
+                    if (field == 'vegetation' || field == 'terrain' || field == 'climate' || field == 'tradeGood' || field == 'topography' || field == 'raw_material' || field == 'region' || field == 'owner') {
+                        updateProvinceField(pKey, field, data[field] ?? '')
+                    }
+                }
+            }
+        }
+    }
+
     return (
         <div className="province-panel">
             <div className="province-color-swatch" style={{ background: hex }} title={hex} />
@@ -87,21 +115,25 @@ function ProvincePanel() {
                     }
                 </div>
             ) : (
-                <table className="province-data-table">
-                    <tbody>
-                        {cols.map(col => (
-                            <tr key={col}>
-                                <td className="col-key">{col}</td>
-                                <td className='col-val'>
-                                    <input className="field-input"
-                                    value={data[col] ?? ''}
-                                    onChange={e => handleFieldChange(col, e.target.value)}
-                                    />
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div>
+                    <table className="province-data-table">
+                        <tbody>
+                            {cols.map(col => (
+                                <tr key={col}>
+                                    <td className="col-key">{col}</td>
+                                    <td className='col-val'>
+                                        <input className="field-input"
+                                        value={data[col] ?? ''}
+                                        onChange={e => handleFieldChange(col, e.target.value)}
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <button onClick={handleCopyArea}>Copy to All In Area</button>
+                    <button onClick={handleCopyRegion}>Copy to All In Region</button>
+                </div>
             )}
             
         </div>
