@@ -71,6 +71,20 @@ function ProvincePanel() {
         ? provinceDataHeaders
         : data ? Object.keys(data) : []
 
+    const handleCopyProvince = () => {
+        for (const pKey in provinceData) {
+            const p = provinceData[pKey]
+
+            if (p.province == data.province) {
+                for (const field of cols) {
+                    if (field == 'vegetation' || field == 'terrain' || field == 'climate' || field == 'tradeGood' || field == 'topography' || field == 'raw_material' || field == 'region' || field == 'owner' || field == 'religion' || field == 'culture' || field == 'population') {
+                        updateProvinceField(pKey, field, data[field] ?? '')
+                    }
+                }
+            }
+        }
+    }
+
     const handleCopyArea = () => {
         for (const pKey in provinceData) {
             const p = provinceData[pKey]
@@ -131,6 +145,7 @@ function ProvincePanel() {
                             ))}
                         </tbody>
                     </table>
+                    <button onClick={handleCopyProvince}>Copy to All in Province</button>
                     <button onClick={handleCopyArea}>Copy to All In Area</button>
                     <button onClick={handleCopyRegion}>Copy to All In Region</button>
                 </div>
